@@ -23,9 +23,8 @@ class FlippingLabel: UILabel {
     
 //    //True if after the completion of the bottom tile animation we can remove
 //    //the views safely
-//    var canRemoveBottomView: Bool = false
-    
-    
+    var canRemoveBottomView: Bool = false
+    var animationFinished = true
     
     
     /// Updates the text of the label with a flip-flap animation
@@ -36,7 +35,12 @@ class FlippingLabel: UILabel {
     func updateWithText(_ newText: String) {
         
         if text != newText {
-            
+            if !animationFinished || canRemoveBottomView{
+                /// If the animation has not finished yet and the user request a new number, we remove the current layers, as they need to be replaced with the layers of the new number
+                self.previousTextBottomView.removeFromSuperview()
+                self.previousTextTopView.removeFromSuperview()
+                self.newTextBottomView.removeFromSuperview()
+            }
             let (previousTextTopView, previousTextBottomView): (UIView, UIView) = createSnapshotViews()
             
             text = newText
@@ -126,6 +130,8 @@ extension FlippingLabel {
     /// Start the flipping animation effect
     func animateTiles() {
         //Adding top tiles animations
+        
+        animationFinished = false
         addTopTileSadowAnimation()
         addTopTileFlippingAnimation()
         
@@ -222,25 +228,27 @@ extension FlippingLabel {
     
     fileprivate func addBottomTileAnimation() {
         
-        self.addSubview(self.newTextBottomView)
-        newTextBottomView.layer.anchorPoint = CGPoint(x: 0.5, y: 0.0)
-        newTextBottomView.center = CGPoint(x: newTextBottomView.frame.width/2.0, y: newTextBottomView.frame.height)
-        let bottomAnimation = CABasicAnimation(keyPath:"transform.rotation.x")
-        
-        bottomAnimation.duration = bottomAnimationDuration
-        bottomAnimation.fromValue = Double.pi/2
-        bottomAnimation.toValue = 0.0
-        bottomAnimation.isRemovedOnCompletion = false;
-        bottomAnimation.fillMode = CAMediaTimingFillMode.forwards
-        bottomAnimation.timingFunction = CAMediaTimingFunction(name: CAMediaTimingFunctionName.linear)
-        bottomAnimation.setValue("bottomAnimation", forKey: "id")
-        bottomAnimation.delegate = self
-        newTextBottomView.layer.add(bottomAnimation, forKey: "bottomRotation")
-        
-        var perspectiveTransform: CATransform3D = CATransform3DIdentity
-        perspectiveTransform.m34 = 1.0 / -350;
-        perspectiveTransform = CATransform3DRotate(perspectiveTransform, CGFloat.pi/2, 1.0, 0.0, 0.0);
-        newTextBottomView.layer.transform = perspectiveTransform;
+        if (self.newTextBottomView != nil){
+            self.addSubview(self.newTextBottomView)
+            newTextBottomView.layer.anchorPoint = CGPoint(x: 0.5, y: 0.0)
+            newTextBottomView.center = CGPoint(x: newTextBottomView.frame.width/2.0, y: newTextBottomView.frame.height)
+            let bottomAnimation = CABasicAnimation(keyPath:"transform.rotation.x")
+            
+            bottomAnimation.duration = bottomAnimationDuration
+            bottomAnimation.fromValue = Double.pi/2
+            bottomAnimation.toValue = 0.0
+            bottomAnimation.isRemovedOnCompletion = false;
+            bottomAnimation.fillMode = CAMediaTimingFillMode.forwards
+            bottomAnimation.timingFunction = CAMediaTimingFunction(name: CAMediaTimingFunctionName.linear)
+            bottomAnimation.setValue("bottomAnimation", forKey: "id")
+            bottomAnimation.delegate = self
+            newTextBottomView.layer.add(bottomAnimation, forKey: "bottomRotation")
+            
+            var perspectiveTransform: CATransform3D = CATransform3DIdentity
+            perspectiveTransform.m34 = 1.0 / -350;
+            perspectiveTransform = CATransform3DRotate(perspectiveTransform, CGFloat.pi/2, 1.0, 0.0, 0.0);
+            newTextBottomView.layer.transform = perspectiveTransform;
+        }
         
     }
     
@@ -278,11 +286,11 @@ extension FlippingLabel: CAAnimationDelegate {
             //(the one that will cover the old text tile)
             if anim.value(forKey: "id") as! String == "topAnimation" {
                 self.addBottomTileAnimation()
-//                canRemoveBottomView = true
+                canRemoveBottomView = true
             }
             else if anim.value(forKey: "id") as! String == "bottomAnimation" {
-//                if canRemoveBottomView {
-//                    canRemoveBottomView = false
+               if canRemoveBottomView {
+                    canRemoveBottomView = false
                 
                 //clip to bounds back to yes if you have shadows
                     clipsToBounds = true;
@@ -294,7 +302,8 @@ extension FlippingLabel: CAAnimationDelegate {
                     
                     previousTextTopView.removeFromSuperview()
                     previousTextTopView = nil
-//                }
+                    animationFinished = true
+                }
             }
         }
     }
